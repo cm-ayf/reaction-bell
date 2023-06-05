@@ -20,11 +20,12 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
   const bells = message.reactions.cache.get(EMOJI);
   if (!bells) return;
 
+  const by = message.guild?.members.resolve(user.id)?.displayName ?? user.tag;
   /** @type {import("discord.js").MessageCreateOptions} */
   const options = {
     content: `\
     ${reaction.users.cache.toJSON().join(" ")}
-    **${user.tag}** reacted to ${message.url} with ${reaction.emoji}`,
+    **${by}** reacted to ${message.url} with ${reaction.emoji}`,
     allowedMentions: { repliedUser: false },
   };
   for (const user of bells.users.cache.values()) {
