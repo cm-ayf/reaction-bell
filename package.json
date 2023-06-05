@@ -1,0 +1,9 @@
+{
+  "name": "reaction-bell",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "main.js",
+  "dependencies": {
+    "discord.js": "^14.11.0"
+  }
+}
