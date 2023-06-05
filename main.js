@@ -24,7 +24,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
   const options = {
     content: `\
     ${reaction.users.cache.toJSON().join(" ")}
-    **${user.tag}** reacted to your message with ${reaction.emoji}`,
+    **${user.tag}** reacted to ${message.url} with ${reaction.emoji}`,
     allowedMentions: { repliedUser: false },
   };
   for (const user of bells.users.cache.values()) {
