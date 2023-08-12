@@ -1,34 +1,80 @@
 // @ts-check
-import { Client, GatewayIntentBits, Partials, Events } from "discord.js";
+import { REST } from "@discordjs/rest";
+import { WebSocketManager } from "@discordjs/ws";
+import {
+  GatewayDispatchEvents,
+  GatewayIntentBits,
+  Client,
+} from "@discordjs/core";
 import { setTimeout } from "timers/promises";
 
 const EMOJI = "🔔";
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessageReactions],
-  partials: [Partials.Message, Partials.Reaction],
+const token =
+  process.env.DISCORD_TOKEN ??
+  (() => {
+    throw new Error("DISCORD_TOKEN is not defined");
+  })();
+
+const rest = new REST({ version: "10" }).setToken(token);
+const gateway = new WebSocketManager({
+  token: token,
+  intents: GatewayIntentBits.GuildMessageReactions,
+  rest,
+});
+const client = new Client({ rest, gateway });
+
+client.on(GatewayDispatchEvents.Ready, async ({ data: readyData }) => {
+  console.log(
+    `Logged in as ${
+      readyData.user?.discriminator === "0"
+        ? readyData.user?.username
+        : `${readyData.user?.username}#${readyData.user?.discriminator}`
+    }`
+  );
 });
 
-client.on(Events.ClientReady, (client) =>
-  console.log(`Logged in as ${client.user.tag}`)
+client.on(
+  GatewayDispatchEvents.MessageReactionAdd,
+  async ({ data: reactionAddData, api }) => {
+    if (reactionAddData.emoji.name === EMOJI) return;
+
+    const bellUsers = await api.channels.getMessageReactions(
+      reactionAddData.channel_id,
+      reactionAddData.message_id,
+      EMOJI
+    );
+    if (!bellUsers.length) return;
+
+    const by =
+      reactionAddData.member?.nick ??
+      reactionAddData.member?.user?.global_name ??
+      reactionAddData.member?.user?.username;
+    /** @type {import("@discordjs/core").RESTPostAPIChannelMessageJSONBody} */
+    const options = {
+      content: `**${by}** reacted to https://discord.com/channels/${
+        reactionAddData.guild_id ?? "@me"
+      }/${reactionAddData.channel_id}/${reactionAddData.message_id} with ${
+        reactionAddData.emoji.id
+          ? `<${reactionAddData.emoji.animated ? "a" : ""}:${
+              reactionAddData.emoji.name
+            }:${reactionAddData.emoji.id}>`
+          : reactionAddData.emoji.name
+      }`,
+      allowed_mentions: { replied_user: false },
+    };
+    for (const user of bellUsers) {
+      await Promise.race([
+        api.channels.createMessage(
+          (
+            await api.users.createDM(user.id)
+          ).id,
+          options
+        ),
+        setTimeout(1000),
+      ]);
+    }
+  }
 );
 
-client.on(Events.MessageReactionAdd, async (reaction, user) => {
-  if (reaction.emoji.name === EMOJI) return;
-
-  const message = await reaction.message.fetch();
-  const bells = message.reactions.cache.get(EMOJI);
-  if (!bells) return;
-
-  const by = message.guild?.members.resolve(user.id)?.displayName ?? user.tag;
-  /** @type {import("discord.js").MessageCreateOptions} */
-  const options = {
-    content: `**${by}** reacted to ${message.url} with ${reaction.emoji}`,
-    allowedMentions: { repliedUser: false },
-  };
-  for (const user of bells.users.cache.values()) {
-    await Promise.race([user.send(options), setTimeout(1000)]);
-  }
-});
-
-client.login();
+gateway.connect();
