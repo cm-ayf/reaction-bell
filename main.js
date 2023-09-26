@@ -8,6 +8,16 @@ import {
 } from "@discordjs/core";
 import { setTimeout } from "timers/promises";
 
+/**
+ * @param {import("@discordjs/core").APIEmoji} emoji
+ * @returns {string | null}
+ */
+function getEmojiString(emoji) {
+  return emoji.id
+    ? `<${emoji.animated ? "a" : ""}:${emoji.name}:${emoji.id}>`
+    : emoji.name;
+}
+
 const EMOJI = "🔔";
 
 const token =
@@ -25,13 +35,7 @@ const gateway = new WebSocketManager({
 const client = new Client({ rest, gateway });
 
 client.on(GatewayDispatchEvents.Ready, async ({ data: readyData }) => {
-  console.log(
-    `Logged in as ${
-      readyData.user?.discriminator === "0"
-        ? readyData.user?.username
-        : `${readyData.user?.username}#${readyData.user?.discriminator}`
-    }`
-  );
+  console.log(`Logged in as ${readyData.user.username}`);
 });
 
 client.on(
@@ -46,25 +50,18 @@ client.on(
     );
     if (!bellUsers.length) return;
 
-    const by =
-      reactionAddData.member?.nick ??
-      reactionAddData.member?.user?.global_name ??
-      reactionAddData.member?.user?.username;
+    const by = `<@${reactionAddData.user_id}>`;
     /** @type {import("@discordjs/core").RESTPostAPIChannelMessageJSONBody} */
     const options = {
       content: `**${by}** reacted to https://discord.com/channels/${
         reactionAddData.guild_id ?? "@me"
-      }/${reactionAddData.channel_id}/${reactionAddData.message_id} with ${
-        reactionAddData.emoji.id
-          ? `<${reactionAddData.emoji.animated ? "a" : ""}:${
-              reactionAddData.emoji.name
-            }:${reactionAddData.emoji.id}>`
-          : reactionAddData.emoji.name
-      }`,
+      }/${reactionAddData.channel_id}/${
+        reactionAddData.message_id
+      } with ${getEmojiString(reactionAddData.emoji)}`,
       allowed_mentions: { replied_user: false },
     };
     for (const user of bellUsers) {
-      await Promise.race([
+      await Promise.all([
         api.channels.createMessage(
           (
             await api.users.createDM(user.id)
