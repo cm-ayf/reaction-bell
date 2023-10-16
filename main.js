@@ -6,7 +6,7 @@ import {
   GatewayIntentBits,
   Client,
 } from "@discordjs/core";
-import { setTimeout } from "timers/promises";
+import { setTimeout } from "node:timers/promises";
 
 /**
  * @param {import("@discordjs/core").APIEmoji} emoji
